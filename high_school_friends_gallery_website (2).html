@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>גלריית חברים - Supabase</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+  <style>
+    body { font-family: Arial; direction: rtl; margin: 0; background: #f0f2f5; text-align: center; }
+    header { background: #000; color: white; padding: 15px; font-size: 22px; }
+    .controls { padding: 15px; }
+    input, button { padding: 10px; margin: 5px; border-radius: 8px; border: 1px solid #ccc; }
+    button { background: black; color: white; cursor: pointer; }
+    .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; padding: 20px; }
+    .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    img { width: 100%; height: 200px; object-fit: cover; }
+    .name { padding: 10px; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<header>
+  גלריית חברים 😎 (Supabase)
+</header>
+
+<div class="controls">
+  <input type="text" id="name" placeholder="שם החבר">
+  <input type="file" id="file">
+  <button onclick="upload()">העלה</button>
+  <br>
+  <input type="text" id="search" placeholder="חיפוש..." onkeyup="render()">
+</div>
+
+<div class="gallery" id="gallery"></div>
+
+<script>
+  const SUPABASE_URL = "sb_publishable_LXUIeWxHdAMZwpDzmeau0Q_Kzx_P3xq";
+  const SUPABASE_KEY = "sb_publishable_LXUIeWxHdAMZwpDzmeau0Q_Kzx_P3xq";
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let data = [];
+
+  async function upload() {
+    const name = document.getElementById('name').value;
+    const file = document.getElementById('file').files[0];
+
+    if (!name || !file) return alert('מלא הכל');
+
+    const fileName = Date.now() + '-' + file.name;
+
+    const { error: uploadError } = await supabase.storage
+      .from('images')
+      .upload(fileName, file);
+
+    if (uploadError) return alert('שגיאה בהעלאה');
+
+    const { data: urlData } = supabase.storage
+      .from('images')
+      .getPublicUrl(fileName);
+
+    await supabase.from('friends').insert([
+      { name: name, url: urlData.publicUrl }
+    ]);
+
+    load();
+  }
+
+  async function load() {
+    const { data: rows } = await supabase.from('friends').select('*');
+    data = rows || [];
+    render();
+  }
+
+  function render() {
+    const search = document.getElementById('search').value.toLowerCase();
+    const gallery = document.getElementById('gallery');
+    gallery.innerHTML = '';
+
+    data
+      .filter(x => x.name.toLowerCase().includes(search))
+      .forEach(x => {
+        gallery.innerHTML += `
+          <div class="card">
+            <img src="${x.url}" />
+            <div class="name">${x.name}</div>
+          </div>
+        `;
+      });
+  }
+
+  load();
+</script>
+
+</body>
+</html>
